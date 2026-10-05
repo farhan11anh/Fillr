@@ -197,34 +197,41 @@ const copyDebugLogs = async () => {
     </div>
 
     <div class="section saved-fill">
-      <div class="scenario-header">
-        <h3>Skenario Form</h3>
-        <div class="scenario-controls" v-if="store && store.scenarios">
-          <select 
-            :value="store.activeScenarioId" 
-            @change="(e) => changeScenario((e.target as HTMLSelectElement).value)"
-            class="scenario-select"
-          >
-            <option v-for="scen in store.scenarios" :key="scen.id" :value="scen.id">
-              {{ scen.name }}
-            </option>
-          </select>
-          <button class="icon-btn" @click="addScenario" title="Tambah Skenario">➕</button>
-          <button class="icon-btn" @click="renameScenario" title="Ubah Nama">✎</button>
-          <button class="icon-btn delete" @click="deleteScenario" title="Hapus Skenario" :disabled="!store || store.scenarios.length <= 1">🗑</button>
+      <div class="scenario-block" v-if="store && store.scenarios">
+        <label class="scenario-label">Skenario Aktif</label>
+        <select 
+          :value="store.activeScenarioId" 
+          @change="(e) => changeScenario((e.target as HTMLSelectElement).value)"
+          class="scenario-select-full"
+        >
+          <option v-for="scen in store.scenarios" :key="scen.id" :value="scen.id">
+            {{ scen.name }}
+          </option>
+        </select>
+        
+        <div class="scenario-actions-text">
+          <button class="text-btn" @click="addScenario">Buat Baru</button>
+          <span class="divider">•</span>
+          <button class="text-btn" @click="renameScenario">Ubah Nama</button>
+          <span class="divider" v-if="store.scenarios.length > 1">•</span>
+          <button class="text-btn text-danger" v-if="store.scenarios.length > 1" @click="deleteScenario">Hapus</button>
         </div>
       </div>
 
-      <div class="actions mt-2">
-        <button class="btn secondary" @click="saveForm">Simpan form ke skenario ini</button>
-        <button class="btn primary" @click="fillSaved" :disabled="savedFields.length === 0">Isi form dengan skenario ini</button>
+      <div class="primary-actions">
+        <button class="btn primary cta-fill" @click="fillSaved" :disabled="savedFields.length === 0">
+          Terapkan Autofill
+        </button>
+        <button class="btn secondary cta-save" @click="saveForm">
+          Rekam Field & Value Saat Ini
+        </button>
       </div>
 
-      <div class="status mt-2">
-        <span v-if="savedFields.length > 0">Tersimpan {{ savedFields.length }} field pada skenario ini</span>
-        <span v-else>Skenario ini masih kosong (belum ada field tersimpan).</span>
+      <div class="status-bar">
+        <span class="status-text" v-if="savedFields.length > 0">Merekam {{ savedFields.length }} elemen form</span>
+        <span class="status-text empty" v-else>Skenario ini belum merekam form apapun.</span>
         
-        <button v-if="savedFields.length > 0" class="btn text-danger btn-clear" @click="clearAll">Clear All</button>
+        <button v-if="savedFields.length > 0" class="text-btn text-danger" @click="clearAll">Bersihkan</button>
       </div>
 
       <div class="fields-list" v-if="savedFields.length > 0">
@@ -239,13 +246,13 @@ const copyDebugLogs = async () => {
             </div>
             <div class="field-edit" v-else>
               <input type="text" v-model="editValue" @keyup.enter="saveEdit" @keyup.esc="cancelEdit" autofocus />
-              <button class="icon-btn save" @click="saveEdit">✓</button>
-              <button class="icon-btn cancel" @click="cancelEdit">✗</button>
+              <button class="text-btn" @click="saveEdit">Simpan</button>
+              <button class="text-btn" @click="cancelEdit">Batal</button>
             </div>
           </div>
           <div class="field-actions" v-if="editingFieldIndex !== idx">
-            <button class="icon-btn edit" @click="startEdit(idx)" title="Edit">✎</button>
-            <button class="icon-btn delete" @click="removeField(idx)" title="Hapus">🗑</button>
+            <button class="text-btn" @click="startEdit(idx)">Ubah</button>
+            <button class="text-btn text-danger" @click="removeField(idx)">Hapus</button>
           </div>
         </div>
       </div>
@@ -271,51 +278,95 @@ h3 {
 }
 
 
-.scenario-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.2rem;
-}
-.scenario-controls {
-  display: flex;
-  gap: 0.2rem;
-  align-items: center;
-}
-.scenario-select {
-  padding: 0.2rem 0.4rem;
+.scenario-block {
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.scenario-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.scenario-select-full {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
-  font-size: 0.85rem;
-  max-width: 150px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  appearance: auto; /* allows native dropdown arrow */
 }
-.mt-2 {
-  margin-top: 0.5rem;
-}
-.actions {
+.scenario-actions-text {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
 }
-.status {
-  font-size: 0.85rem;
+.text-btn {
+  background: transparent;
+  border: none;
   color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.text-btn:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+.text-btn.text-danger {
+  color: var(--danger);
+}
+.text-btn.text-danger:hover {
+  color: var(--danger);
+}
+.divider {
+  color: var(--border);
+  font-size: 0.8rem;
+}
+
+.primary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.cta-fill {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.cta-save {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed var(--border);
 }
-.btn-clear {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.8rem;
-  width: auto;
-  background: transparent;
-  border: 1px solid var(--danger);
-  color: var(--danger);
+.status-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 500;
 }
-.btn-clear:hover {
-  background: var(--danger);
-  color: #ffffff;
+.status-text.empty {
+  color: var(--text-muted);
 }
 .fields-list {
   border: 1px solid var(--border);
@@ -359,6 +410,11 @@ h3 {
   gap: 0.2rem;
   align-items: center;
 }
+.field-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
 .field-edit input {
   flex: 1;
   min-width: 0;
@@ -367,27 +423,6 @@ h3 {
   border-radius: 2px;
   background: var(--bg);
   color: var(--text);
-}
-.icon-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.2rem;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--text-muted);
-}
-.icon-btn:hover {
-  color: var(--text);
-}
-.icon-btn.delete:hover {
-  color: var(--danger);
-}
-.icon-btn.save:hover {
-  color: var(--success);
-}
-.icon-btn.cancel:hover {
-  color: var(--danger);
 }
 .debug-settings {
   flex-direction: row;

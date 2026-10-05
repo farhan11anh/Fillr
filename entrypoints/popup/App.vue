@@ -68,8 +68,8 @@ onMounted(async () => {
     </header>
     
     <main class="content">
-      <AutofillMode v-if="activeMode === 'autofill'" />
-      <DevToolsMode v-else />
+      <AutofillMode v-show="activeMode === 'autofill'" />
+      <DevToolsMode v-show="activeMode === 'devtools'" />
     </main>
   </div>
 </template>

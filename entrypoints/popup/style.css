@@ -101,6 +101,42 @@ button:focus-visible {
   outline: 4px auto var(--accent);
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn.primary {
+  background-color: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.btn.primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn.primary:disabled {
+  background-color: var(--border);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  background-color: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn.secondary:hover {
+  background-color: var(--surface);
+  border-color: var(--text-muted);
+}
+
 .card {
   padding: 2em;
 }
