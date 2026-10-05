@@ -11,7 +11,15 @@ export default defineContentScript({
       const url = new URL(window.location.href);
       const key = `fillkit_saved_form_${url.origin}${url.pathname}${url.hash}`;
       const data = await chrome.storage.local.get([key]);
-      const savedFields = data[key] || [];
+      const stored = data[key];
+      
+      let savedFields: any[] = [];
+      if (Array.isArray(stored)) {
+        savedFields = stored;
+      } else if (stored && stored.scenarios) {
+        const scenario = stored.scenarios.find((s: any) => s.id === stored.activeScenarioId) || stored.scenarios[0];
+        savedFields = scenario ? scenario.fields : [];
+      }
 
       if (debugMode) {
         console.groupCollapsed(`[Fillkit] Fill Form Session (${savedFields.length} fields to process)`);

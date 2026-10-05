@@ -21,8 +21,10 @@ export default defineBackground(() => {
     if (!url || !url.startsWith('http')) return;
     try {
       const parsedUrl = new URL(url);
-      const { getSavedFormFields } = await import('@/utils/savedForm');
-      const fields = await getSavedFormFields(parsedUrl.origin, parsedUrl.pathname, parsedUrl.hash);
+      const { getFormScenarios } = await import('@/utils/savedForm');
+      const store = await getFormScenarios(parsedUrl.origin, parsedUrl.pathname, parsedUrl.hash);
+      const activeScenario = store.scenarios.find(s => s.id === store.activeScenarioId) || store.scenarios[0];
+      const fields = activeScenario ? activeScenario.fields : [];
       if (fields && fields.length > 0) {
         await browser.action.setBadgeText({ text: '★', tabId });
         await browser.action.setBadgeBackgroundColor({ color: '#4caf50', tabId });

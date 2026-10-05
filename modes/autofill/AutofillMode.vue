@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { getSavedFormFields, saveFormFields } from '@/utils/savedForm';
-import type { SavedFormField } from '@/utils/savedForm';
+import { ref, onMounted, computed } from 'vue';
+import { getFormScenarios, saveFormScenarios } from '@/utils/savedForm';
+import type { SavedFormField, ScenarioStore, Scenario } from '@/utils/savedForm';
 
 const currentUrl = ref<{origin: string, pathname: string, hash: string} | null>(null);
-const savedFields = ref<SavedFormField[]>([]);
+const store = ref<ScenarioStore | null>(null);
+
 const editingFieldIndex = ref<number | null>(null);
 const editValue = ref<string>('');
 const isDebugMode = ref<boolean>(false);
 const showCopyToast = ref<boolean>(false);
+
+const activeScenario = computed(() => {
+  if (!store.value) return null;
+  return store.value.scenarios.find(s => s.id === store.value?.activeScenarioId) || store.value.scenarios[0];
+});
+
+const savedFields = computed(() => {
+  return activeScenario.value ? activeScenario.value.fields : [];
+});
 
 onMounted(async () => {
   const debugData = await chrome.storage.local.get(['fillkit_debug_mode']);
@@ -18,18 +28,61 @@ onMounted(async () => {
   if (tab && tab.url && tab.url.startsWith('http')) {
     const url = new URL(tab.url);
     currentUrl.value = { origin: url.origin, pathname: url.pathname, hash: url.hash };
-    await loadSavedFields();
+    await loadStore();
   }
 });
 
-const loadSavedFields = async () => {
+const loadStore = async () => {
   if (!currentUrl.value) return;
-  savedFields.value = await getSavedFormFields(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash);
+  store.value = await getFormScenarios(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash);
+};
+
+const saveStore = async () => {
+  if (!currentUrl.value || !store.value) return;
+  await saveFormScenarios(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash, store.value);
+};
+
+const changeScenario = async (id: string) => {
+  if (!store.value) return;
+  store.value.activeScenarioId = id;
+  await saveStore();
+};
+
+const addScenario = async () => {
+  if (!store.value) return;
+  const name = prompt('Nama skenario baru:', `Skenario ${store.value.scenarios.length + 1}`);
+  if (!name) return;
+  
+  const newId = `sc_${Date.now()}`;
+  store.value.scenarios.push({ id: newId, name, fields: [] });
+  store.value.activeScenarioId = newId;
+  await saveStore();
+};
+
+const renameScenario = async () => {
+  if (!activeScenario.value || !store.value) return;
+  const name = prompt('Ubah nama skenario:', activeScenario.value.name);
+  if (name && name.trim()) {
+    activeScenario.value.name = name.trim();
+    await saveStore();
+  }
+};
+
+const deleteScenario = async () => {
+  if (!store.value || store.value.scenarios.length <= 1) {
+    alert('Tidak bisa menghapus skenario terakhir.');
+    return;
+  }
+  if (!confirm(`Hapus skenario "${activeScenario.value?.name}"?`)) return;
+  
+  store.value.scenarios = store.value.scenarios.filter(s => s.id !== store.value!.activeScenarioId);
+  store.value.activeScenarioId = store.value.scenarios[0].id;
+  await saveStore();
 };
 
 const saveForm = async () => {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.id || !currentUrl.value) return;
+  if (!tab || !tab.id || !currentUrl.value || !activeScenario.value || !store.value) return;
 
   try {
     const [result] = await browser.scripting.executeScript({
@@ -38,8 +91,8 @@ const saveForm = async () => {
     });
     
     if (result && result.result) {
-      await saveFormFields(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash, result.result);
-      await loadSavedFields();
+      activeScenario.value.fields = result.result;
+      await saveStore();
       
       // Update badge
       browser.action.setBadgeText({ text: '★', tabId: tab.id });
@@ -64,13 +117,11 @@ const fillSaved = async () => {
   }
 };
 
-
-
 const removeField = async (index: number) => {
-  if (!currentUrl.value) return;
-  savedFields.value.splice(index, 1);
-  await saveFormFields(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash, savedFields.value);
-  if (savedFields.value.length === 0) {
+  if (!activeScenario.value) return;
+  activeScenario.value.fields.splice(index, 1);
+  await saveStore();
+  if (activeScenario.value.fields.length === 0) {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.id) browser.action.setBadgeText({ text: '', tabId: tab.id });
   }
@@ -82,9 +133,9 @@ const startEdit = (index: number) => {
 };
 
 const saveEdit = async () => {
-  if (!currentUrl.value || editingFieldIndex.value === null) return;
-  savedFields.value[editingFieldIndex.value].value = editValue.value;
-  await saveFormFields(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash, savedFields.value);
+  if (!activeScenario.value || editingFieldIndex.value === null) return;
+  activeScenario.value.fields[editingFieldIndex.value].value = editValue.value;
+  await saveStore();
   editingFieldIndex.value = null;
 };
 
@@ -93,9 +144,9 @@ const cancelEdit = () => {
 };
 
 const clearAll = async () => {
-  if (!currentUrl.value) return;
-  savedFields.value = [];
-  await saveFormFields(currentUrl.value.origin, currentUrl.value.pathname, currentUrl.value.hash, []);
+  if (!activeScenario.value) return;
+  activeScenario.value.fields = [];
+  await saveStore();
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   if (tab && tab.id) browser.action.setBadgeText({ text: '', tabId: tab.id });
 };
@@ -146,15 +197,32 @@ const copyDebugLogs = async () => {
     </div>
 
     <div class="section saved-fill">
-      <h3>Form Tersimpan</h3>
-      <div class="actions">
-        <button class="btn secondary" @click="saveForm">Simpan form</button>
-        <button class="btn primary" @click="fillSaved" :disabled="savedFields.length === 0">Isi form</button>
+      <div class="scenario-header">
+        <h3>Skenario Form</h3>
+        <div class="scenario-controls" v-if="store && store.scenarios">
+          <select 
+            :value="store.activeScenarioId" 
+            @change="(e) => changeScenario((e.target as HTMLSelectElement).value)"
+            class="scenario-select"
+          >
+            <option v-for="scen in store.scenarios" :key="scen.id" :value="scen.id">
+              {{ scen.name }}
+            </option>
+          </select>
+          <button class="icon-btn" @click="addScenario" title="Tambah Skenario">➕</button>
+          <button class="icon-btn" @click="renameScenario" title="Ubah Nama">✎</button>
+          <button class="icon-btn delete" @click="deleteScenario" title="Hapus Skenario" :disabled="!store || store.scenarios.length <= 1">🗑</button>
+        </div>
       </div>
 
-      <div class="status">
-        <span v-if="savedFields.length > 0">Tersimpan {{ savedFields.length }} field</span>
-        <span v-else>Belum ada form tersimpan untuk halaman ini.</span>
+      <div class="actions mt-2">
+        <button class="btn secondary" @click="saveForm">Simpan form ke skenario ini</button>
+        <button class="btn primary" @click="fillSaved" :disabled="savedFields.length === 0">Isi form dengan skenario ini</button>
+      </div>
+
+      <div class="status mt-2">
+        <span v-if="savedFields.length > 0">Tersimpan {{ savedFields.length }} field pada skenario ini</span>
+        <span v-else>Skenario ini masih kosong (belum ada field tersimpan).</span>
         
         <button v-if="savedFields.length > 0" class="btn text-danger btn-clear" @click="clearAll">Clear All</button>
       </div>
@@ -203,6 +271,29 @@ h3 {
 }
 
 
+.scenario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+.scenario-controls {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+.scenario-select {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  max-width: 150px;
+}
+.mt-2 {
+  margin-top: 0.5rem;
+}
 .actions {
   display: flex;
   gap: 0.5rem;
