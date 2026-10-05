@@ -36,7 +36,9 @@ export const getSavedFormKey = (origin: string, pathname: string, hash: string =
 
 export const saveFormScenarios = async (origin: string, pathname: string, hash: string, store: ScenarioStore): Promise<void> => {
   const key = getSavedFormKey(origin, pathname, hash);
-  await chrome.storage.local.set({ [key]: store });
+  // Strip Vue Proxy wrappers before saving to chrome storage to prevent serialization issues
+  const rawStore = JSON.parse(JSON.stringify(store));
+  await chrome.storage.local.set({ [key]: rawStore });
 };
 
 export const getFormScenarios = async (origin: string, pathname: string, hash: string): Promise<ScenarioStore> => {

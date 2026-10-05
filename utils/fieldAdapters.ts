@@ -217,7 +217,7 @@ export const QuasarSelectAdapter: FieldAdapter = {
         return null;
       };
 
-      const waitForMenuAndOptions = async (timeout: number, isRetry: boolean = false): Promise<{ menu: Element, options: Element[] }> => {
+      const waitForMenuAndOptions = async (timeout: number, targetCandidates: string[] = []): Promise<{ menu: Element, options: Element[] }> => {
         return new Promise((resolve, reject) => {
           const startTime = Date.now();
           
@@ -242,12 +242,26 @@ export const QuasarSelectAdapter: FieldAdapter = {
               
               if (isNoData) {
                 // Not found yet. Maybe still async resolving? Or truly not found.
-                // We'll retry a bit or if time is up, we throw.
                 setTimeout(check, 250);
                 return;
               }
               
               if (opts.length > 0) {
+                // If we have specific targets to wait for, check if any option matches
+                if (targetCandidates.length > 0) {
+                  const normalize = (t: string | undefined) => (t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                  const foundTarget = opts.some(opt => {
+                    const text = normalize(opt.querySelector('.q-item__label')?.textContent || opt.textContent || '');
+                    return targetCandidates.some(c => text === c || text.includes(c) || c.includes(text));
+                  });
+                  
+                  if (!foundTarget && Date.now() - startTime < timeout - 1000) {
+                    // Option not found yet, maybe still fetching/rendering. Keep waiting.
+                    setTimeout(check, 250);
+                    return;
+                  }
+                }
+                
                 resolve({ menu: m, options: opts });
                 return;
               }
@@ -259,9 +273,12 @@ export const QuasarSelectAdapter: FieldAdapter = {
         });
       };
 
+      const normalize = (t: string | undefined) => (t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const normCandidates = candidates.map(c => normalize(c as string));
+
       try {
         if (debugMode) dlog('QuasarSelectAdapter', 'info', `Waiting for menu to appear...`);
-        const { menu: foundMenu, options } = await waitForMenuAndOptions(5000);
+        const { menu: foundMenu, options } = await waitForMenuAndOptions(5000, normCandidates);
         menu = foundMenu;
       } catch (err: any) {
         // Fallback: clear input and search again without filter
@@ -271,7 +288,7 @@ export const QuasarSelectAdapter: FieldAdapter = {
           inputEl.value = '';
           inputEl.dispatchEvent(new Event('input', { bubbles: true }));
           try {
-            const { menu: foundMenu } = await waitForMenuAndOptions(5000, true);
+            const { menu: foundMenu } = await waitForMenuAndOptions(5000, normCandidates);
             menu = foundMenu;
           } catch (fallbackErr) {
             if (debugMode) dlog('QuasarSelectAdapter', 'error', `Menu fallback failed`);
@@ -287,20 +304,17 @@ export const QuasarSelectAdapter: FieldAdapter = {
       await new Promise(r => setTimeout(r, 100)); // slight delay for render stability
 
       // Re-query options as they might have changed after fallback
-      const options = Array.from(menu.querySelectorAll('.q-item'));
-      
-      const normalize = (t: string | undefined) => (t || '').toLowerCase().replace(/\s+/g, ' ').trim();
-      const normCandidates = candidates.map(c => normalize(c as string));
+      const finalOptions = Array.from(menu.querySelectorAll('.q-item'));
       
       // 1. Exact match
-      let targetOption = options.find(opt => {
+      let targetOption = finalOptions.find(opt => {
         const text = normalize(opt.querySelector('.q-item__label')?.textContent || opt.textContent || '');
         return normCandidates.includes(text);
       });
       
       // 2. Partial match
       if (!targetOption) {
-        targetOption = options.find(opt => {
+        targetOption = finalOptions.find(opt => {
           const text = normalize(opt.querySelector('.q-item__label')?.textContent || opt.textContent || '');
           return normCandidates.some(c => text.includes(c) || c.includes(text));
         });
