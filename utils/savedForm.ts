@@ -53,7 +53,16 @@ export const getFormScenarios = async (origin: string, pathname: string, hash: s
     return { activeScenarioId: 'default', scenarios: [{ id: 'default', name: 'Skenario 1', fields: stored }] };
   }
   
-  return stored as ScenarioStore;
+  // Fallback for corrupted or older object schemas that lack .scenarios
+  const parsedStore = stored as any;
+  if (!parsedStore.scenarios || !Array.isArray(parsedStore.scenarios) || parsedStore.scenarios.length === 0) {
+    return { 
+      activeScenarioId: 'default', 
+      scenarios: [{ id: 'default', name: 'Skenario 1', fields: [] }] 
+    };
+  }
+  
+  return parsedStore as ScenarioStore;
 };
 
 export const extractFormFields = async (debugMode: boolean = false): Promise<SavedFormField[]> => {

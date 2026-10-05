@@ -197,44 +197,50 @@ const copyDebugLogs = async () => {
     </div>
 
     <div class="section saved-fill">
-      <div class="scenario-block" v-if="store && store.scenarios">
-        <label class="scenario-label">Skenario Aktif</label>
-        <select 
-          :value="store.activeScenarioId" 
-          @change="(e) => changeScenario((e.target as HTMLSelectElement).value)"
-          class="scenario-select-full"
-        >
-          <option v-for="scen in store.scenarios" :key="scen.id" :value="scen.id">
-            {{ scen.name }}
-          </option>
-        </select>
-        
-        <div class="scenario-actions-text">
-          <button class="text-btn" @click="addScenario">Buat Baru</button>
-          <span class="divider">•</span>
-          <button class="text-btn" @click="renameScenario">Ubah Nama</button>
-          <span class="divider" v-if="store.scenarios.length > 1">•</span>
-          <button class="text-btn text-danger" v-if="store.scenarios.length > 1" @click="deleteScenario">Hapus</button>
+      <div v-if="!currentUrl" class="unsupported-state">
+        <div class="unsupported-icon">🚫</div>
+        <p>Autofill tidak dapat digunakan di halaman ini.</p>
+        <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.2rem;">Silakan buka halaman website (http/https) untuk merekam dan mengisi form.</p>
+      </div>
+      <template v-else>
+        <div class="scenario-block" v-if="store && store.scenarios">
+          <label class="scenario-label">Skenario Aktif</label>
+          <select 
+            :value="store.activeScenarioId" 
+            @change="(e) => changeScenario((e.target as HTMLSelectElement).value)"
+            class="scenario-select-full"
+          >
+            <option v-for="scen in store.scenarios" :key="scen.id" :value="scen.id">
+              {{ scen.name }}
+            </option>
+          </select>
+          
+          <div class="scenario-actions-text">
+            <button class="text-btn" @click="addScenario">Buat Baru</button>
+            <span class="divider">•</span>
+            <button class="text-btn" @click="renameScenario">Ubah Nama</button>
+            <span class="divider" v-if="store.scenarios.length > 1">•</span>
+            <button class="text-btn text-danger" v-if="store.scenarios.length > 1" @click="deleteScenario">Hapus</button>
+          </div>
         </div>
-      </div>
 
-      <div class="primary-actions">
-        <button class="btn primary cta-fill" @click="fillSaved" :disabled="savedFields.length === 0">
-          Terapkan Autofill
-        </button>
-        <button class="btn secondary cta-save" @click="saveForm">
-          Rekam Field & Value Saat Ini
-        </button>
-      </div>
+        <div class="primary-actions">
+          <button class="btn primary cta-fill" @click="fillSaved" :disabled="savedFields.length === 0">
+            Terapkan Autofill
+          </button>
+          <button class="btn secondary cta-save" @click="saveForm">
+            Rekam Field & Value Saat Ini
+          </button>
+        </div>
 
-      <div class="status-bar">
-        <span class="status-text" v-if="savedFields.length > 0">Merekam {{ savedFields.length }} elemen form</span>
-        <span class="status-text empty" v-else>Skenario ini belum merekam form apapun.</span>
-        
-        <button v-if="savedFields.length > 0" class="text-btn text-danger" @click="clearAll">Bersihkan</button>
-      </div>
+        <div class="status-bar">
+          <span class="status-text" v-if="savedFields.length > 0">Merekam {{ savedFields.length }} elemen form</span>
+          <span class="status-text empty" v-else>Skenario ini belum merekam form apapun.</span>
+          
+          <button v-if="savedFields.length > 0" class="text-btn text-danger" @click="clearAll">Bersihkan</button>
+        </div>
 
-      <div class="fields-list" v-if="savedFields.length > 0">
+        <div class="fields-list" v-if="savedFields.length > 0">
         <div class="field-item" v-for="(field, idx) in savedFields" :key="idx">
           <div class="field-info">
             <div class="field-name" :title="field.label || field.name || field.id">
@@ -255,7 +261,8 @@ const copyDebugLogs = async () => {
             <button class="text-btn text-danger" @click="removeField(idx)">Hapus</button>
           </div>
         </div>
-      </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -276,7 +283,18 @@ h3 {
   margin: 0;
   font-size: 1.1rem;
 }
-
+.unsupported-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.unsupported-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
 
 .scenario-block {
   background: var(--surface);

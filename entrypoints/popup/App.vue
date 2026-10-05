@@ -68,8 +68,9 @@ onMounted(async () => {
     </header>
     
     <main class="content">
-      <AutofillMode v-show="activeMode === 'autofill'" />
-      <DevToolsMode v-show="activeMode === 'devtools'" />
+      <KeepAlive>
+        <component :is="activeMode === 'autofill' ? AutofillMode : DevToolsMode" />
+      </KeepAlive>
     </main>
   </div>
 </template>
