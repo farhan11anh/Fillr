@@ -318,8 +318,6 @@ h3 {
   color: #ffffff;
 }
 .fields-list {
-  max-height: 200px;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);

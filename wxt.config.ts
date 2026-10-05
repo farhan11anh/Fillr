@@ -6,8 +6,8 @@ export default defineConfig({
   manifest: {
     name: 'FillrKit',
     description: 'A mode switcher extension for Autofill and Dev Tools',
-    version: '1.0.0',
-    version_name: '1.0.0 (Beta)',
+    version: '1.0.1',
+    version_name: '1.0.1 (Beta)',
     permissions: ['storage', 'activeTab', 'scripting', 'webNavigation', 'tabs'],
     commands: {
       "fill-form": {
